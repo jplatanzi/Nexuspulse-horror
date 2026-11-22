@@ -1,0 +1,1623 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexusPulse | Agência de Crescimento & Performance Digital</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Creepster&family=Inter:wght@300;400;500;600;700;800;900&family=Special+Elite&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --scroll-p: 0;
+            --horror-intensity: 0;
+            --bg-color: #ffffff;
+            --text-main: #0f172a;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            /* Disable overscroll bounce on mobile/desktop to reinforce scroll lock */
+            overscroll-behavior-y: none;
+        }
+
+        /* =========================================================
+           ANALOG HORROR & ATMOSPHERIC OVERLAYS
+           ========================================================= */
+        #crt-scanlines {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 9000;
+            opacity: 0;
+            background: linear-gradient(
+                rgba(18, 16, 16, 0) 50%,
+                rgba(0, 0, 0, 0.38) 50%
+            ), linear-gradient(
+                90deg,
+                rgba(255, 0, 0, 0.05),
+                rgba(0, 255, 0, 0.015),
+                rgba(0, 0, 255, 0.05)
+            );
+            background-size: 100% 3px, 6px 100%;
+        }
+
+        #static-canvas {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 8999;
+            opacity: 0;
+            mix-blend-mode: overlay;
+        }
+
+        #vignette-overlay {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 8998;
+            opacity: 0;
+            background: radial-gradient(circle at center, transparent 32%, rgba(0, 0, 0, 0.96) 100%);
+        }
+
+        #blood-tint {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 8997;
+            opacity: 0;
+            background: radial-gradient(circle at center, rgba(127, 29, 29, 0.14) 0%, rgba(45, 0, 0, 0.72) 100%);
+            mix-blend-mode: multiply;
+        }
+
+        #strobe-layer {
+            position: fixed;
+            inset: 0;
+            background: #ffffff;
+            pointer-events: none;
+            z-index: 9500;
+            opacity: 0;
+        }
+
+        /* Peripheral Shadow Figure that darts across screen in Stage 6+ */
+        #peripheral-shadow {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            width: 240px;
+            pointer-events: none;
+            z-index: 9100;
+            opacity: 0;
+            transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.18s ease;
+        }
+
+        /* Ratchet Scroll Lock Warning Toast */
+        #scroll-lock-toast {
+            position: fixed;
+            top: 84px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-16px);
+            z-index: 9650;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+
+        #scroll-lock-toast.visible {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* Typography Helpers */
+        .horror-typewriter {
+            font-family: 'Special Elite', 'Courier Prime', monospace;
+        }
+
+        .horror-mono {
+            font-family: 'Courier Prime', monospace;
+        }
+
+        .horror-creep {
+            font-family: 'Creepster', cursive;
+            letter-spacing: 0.08em;
+        }
+
+        .chromatic-text {
+            text-shadow:
+                calc(var(--horror-intensity) * 3.5px) 0px rgba(255, 0, 0, 0.8),
+                calc(var(--horror-intensity) * -3.5px) 0px rgba(0, 255, 255, 0.8);
+        }
+
+        /* Animations */
+        @keyframes microJitter {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(-1.5px, 1px) rotate(-0.35deg); }
+            50% { transform: translate(1.5px, -1px) rotate(0.35deg); }
+            75% { transform: translate(-1px, -1.5px) rotate(0deg); }
+        }
+
+        @keyframes ratchetShake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-6px) rotate(-0.4deg); }
+            40% { transform: translateX(6px) rotate(0.4deg); }
+            60% { transform: translateX(-4px); }
+            80% { transform: translateX(4px); }
+        }
+
+        @keyframes violentViolentShake {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            15% { transform: translate(-10px, -7px) rotate(-1.8deg); }
+            30% { transform: translate(10px, 5px) rotate(1.8deg); }
+            45% { transform: translate(-8px, 9px) rotate(-1.2deg); }
+            60% { transform: translate(9px, -9px) rotate(1.4deg); }
+            75% { transform: translate(-11px, 3px) rotate(-2deg); }
+            90% { transform: translate(8px, -5px) rotate(1.5deg); }
+            100% { transform: translate(0, 0) rotate(0deg); }
+        }
+
+        @keyframes pulseCrimson {
+            0%, 100% {
+                box-shadow: 0 0 22px rgba(220, 38, 38, 0.55), inset 0 0 15px rgba(220, 38, 38, 0.4);
+                transform: scale(1);
+            }
+            50% {
+                box-shadow: 0 0 55px rgba(220, 38, 38, 0.98), inset 0 0 30px rgba(255, 0, 0, 0.75);
+                transform: scale(1.03);
+            }
+        }
+
+        @keyframes strobeFlash {
+            0%, 91%, 95%, 100% { opacity: 0; }
+            92%, 96% { opacity: 0.85; }
+        }
+
+        .jitter-subtle {
+            animation: microJitter 0.28s infinite;
+        }
+
+        .ratchet-bump {
+            animation: ratchetShake 0.28s ease-in-out;
+        }
+
+        .violent-shake {
+            animation: violentViolentShake 0.14s infinite;
+        }
+
+        .crimson-pulse {
+            animation: pulseCrimson 1.5s infinite ease-in-out;
+        }
+
+        /* Cursor Ghost Trail */
+        .cursor-echo {
+            position: fixed;
+            width: 11px;
+            height: 11px;
+            border-radius: 50%;
+            background: rgba(220, 38, 38, 0.45);
+            pointer-events: none;
+            z-index: 9200;
+            transform: translate(-50%, -50%);
+            transition: opacity 0.55s ease-out, transform 0.55s ease-out;
+        }
+
+        /* Custom Scrollbar degradation */
+        ::-webkit-scrollbar {
+            width: 9px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #09090b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2563eb;
+            border-radius: 4px;
+        }
+        body.stage-dark ::-webkit-scrollbar-thumb {
+            background: #7f1d1d;
+        }
+        body.stage-abyss ::-webkit-scrollbar-thumb {
+            background: #dc2626;
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-blue-600 selection:text-white">
+
+    <!-- Atmospheric Visual Overlays -->
+    <canvas id="static-canvas"></canvas>
+    <div id="crt-scanlines"></div>
+    <div id="vignette-overlay"></div>
+    <div id="blood-tint"></div>
+    <div id="strobe-layer"></div>
+
+    <!-- Peripheral Shadow Silhouette -->
+    <div id="peripheral-shadow" aria-hidden="true">
+        <svg class="w-full h-full" viewBox="0 0 200 600" preserveAspectRatio="none">
+            <path d="M 100 40 C 145 40, 165 110, 155 180 C 185 230, 195 420, 190 600 L 10 600 C 5 420, 15 230, 45 180 C 35 110, 55 40, 100 40 Z" fill="#030000"/>
+            <circle cx="82" cy="115" r="5" fill="#ef4444" opacity="0.85"/>
+            <circle cx="118" cy="115" r="5" fill="#ef4444" opacity="0.85"/>
+        </svg>
+    </div>
+
+    <!-- Ratchet Scroll Lock Warning Toast -->
+    <div id="scroll-lock-toast" class="px-5 py-2.5 rounded-lg bg-zinc-950/95 border border-red-800/80 text-red-400 text-xs sm:text-sm font-bold tracking-widest uppercase horror-mono shadow-2xl">
+        [ NÃO HÁ VOLTA — CONTINUE DESCENDO ]
+    </div>
+
+    <!-- Depth & Audio HUD Pill -->
+    <div id="hud-bar" class="fixed bottom-4 left-4 right-4 sm:right-auto z-[9600] flex flex-wrap items-center justify-between sm:justify-start gap-2.5 pointer-events-auto">
+        <button id="audio-toggle" aria-label="Alternar Áudio Ambiente" class="flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-medium bg-white/90 backdrop-blur border border-slate-200 text-slate-700 shadow-lg hover:scale-105 transition-all cursor-pointer">
+            <span id="audio-dot" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span id="audio-label">Áudio Ambiente: Ativo</span>
+        </button>
+
+        <div id="depth-badge" class="px-3.5 py-2 rounded-full text-xs font-semibold bg-white/90 backdrop-blur border border-slate-200 text-slate-600 shadow-lg transition-colors">
+            Profundidade: <span id="depth-meters">0m</span>
+        </div>
+    </div>
+
+    <!-- Creepy Corporate Support Chat Widget (Stage 3+) -->
+    <div id="creepy-chat" class="fixed bottom-16 sm:bottom-5 right-4 sm:right-5 z-[9600] max-w-xs w-80 bg-zinc-900/95 backdrop-blur border border-zinc-700 text-zinc-100 rounded-xl shadow-2xl p-4 hidden transform transition-all duration-500 translate-y-10 opacity-0">
+        <div class="flex items-center justify-between border-b border-zinc-800 pb-2 mb-2.5">
+            <div class="flex items-center gap-2">
+                <div id="chat-status-dot" class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping"></div>
+                <span id="chat-header-title" class="text-xs font-bold tracking-wider uppercase text-zinc-300 horror-mono">ATENDIMENTO NEXUS</span>
+            </div>
+            <button id="close-chat-btn" class="text-xs text-zinc-500 hover:text-red-400 px-1 cursor-pointer">✕</button>
+        </div>
+        <div id="chat-messages" class="space-y-2 text-xs horror-mono leading-relaxed text-zinc-300 max-h-44 overflow-y-auto">
+            <p class="bg-zinc-950/90 p-2.5 rounded border border-zinc-800">Olá. Notamos que você já desceu bastante... Por que você ainda está descendo?</p>
+        </div>
+    </div>
+
+    <!-- Fullscreen Jumpscare / Final Connection Modal (Stage 8) -->
+    <div id="jumpscare-overlay" class="fixed inset-0 z-[9999] bg-black hidden flex-col items-center justify-center p-4 sm:p-8 text-center select-none overflow-hidden">
+        <canvas id="jumpscare-canvas" class="w-64 h-64 sm:w-80 sm:h-80 mb-4"></canvas>
+        <h2 id="jumpscare-title" class="text-3xl sm:text-6xl font-black text-red-600 tracking-widest uppercase horror-typewriter chromatic-text">
+            CONEXÃO PERMANENTE ESTABELECIDA
+        </h2>
+        <p id="jumpscare-sub" class="text-xs sm:text-base text-red-200/90 horror-mono max-w-xl mx-auto mt-4 leading-relaxed">
+            A descida foi concluída. Seu tempo, sua atenção e seu reflexo na tela foram absorvidos pelo funil. Não há mais caminho para cima.
+        </p>
+        <div class="mt-8 flex flex-col sm:flex-row items-center gap-4">
+            <button id="inspect-abyss-btn" class="px-6 py-3 bg-red-950 hover:bg-red-800 text-red-100 border border-red-600 rounded-lg text-xs sm:text-sm uppercase tracking-widest horror-mono transition-all cursor-pointer">
+                Permanecer na Escuridão
+            </button>
+        </div>
+    </div>
+
+    <!-- =====================================================================
+         TOP HEADER (Degrades and vanishes as user descends into the abyss)
+         ===================================================================== -->
+    <header id="main-header" class="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200/80 transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+                <div id="brand-logo-box" class="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold shadow-md shadow-blue-600/20 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                </div>
+                <span id="brand-name" class="text-xl font-extrabold tracking-tight text-slate-900">Nexus<span id="brand-accent" class="text-blue-600">Pulse</span></span>
+            </div>
+
+            <nav id="header-nav" class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
+                <span class="cursor-default">Soluções</span>
+                <span class="cursor-default">Metodologia</span>
+                <span class="cursor-default">Cases</span>
+                <span class="cursor-default">Liderança</span>
+            </nav>
+
+            <div class="flex items-center gap-3">
+                <button id="header-cta" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold shadow-sm transition-all cursor-pointer">
+                    Agendar Diagnóstico
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- =====================================================================
+         MAIN VERTICAL JOURNEY (~21,000px TOTAL HEIGHT ACROSS 8 STAGES)
+         ===================================================================== -->
+    <main id="page-content" class="relative">
+
+        <!-- =================================================================
+             ESTÁGIO 1 (0px - 2.300px): PERFEIÇÃO CORPORATIVA
+             ================================================================= -->
+        <section id="stage-1" class="min-h-[2300px] flex flex-col justify-between pt-14 pb-24 sm:pt-24">
+            <!-- Hero Block -->
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+                <div class="grid lg:grid-cols-12 gap-12 items-center">
+                    <div class="lg:col-span-7 space-y-6 text-center lg:text-left">
+                        <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-xs font-semibold">
+                            <span class="w-2 h-2 rounded-full bg-blue-600"></span>
+                            <span>Agência #1 em Performance & Crescimento B2B</span>
+                        </div>
+
+                        <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1] text-slate-900">
+                            Escale sua receita com <span class="text-blue-600">precisão cirúrgica</span>.
+                        </h1>
+
+                        <p class="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
+                            Transformamos tráfego em receita previsível através de engenharia de funil, ciência de dados e otimização contínua da jornada do cliente.
+                        </p>
+
+                        <div class="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-2">
+                            <button id="hero-start-btn" class="w-full sm:w-auto px-7 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm shadow-lg shadow-blue-600/25 transition-all cursor-pointer">
+                                Explorar Ecossistema
+                            </button>
+                            <div class="w-full sm:w-auto px-7 py-3.5 rounded-xl bg-slate-100 text-slate-700 font-semibold text-sm text-center">
+                                +R$ 420M Gerados aos Clientes
+                            </div>
+                        </div>
+
+                        <div class="pt-6 flex flex-wrap items-center justify-center lg:justify-start gap-6 text-xs text-slate-400 font-medium">
+                            <span>✓ Auditoria Completa de Funil</span>
+                            <span>✓ Attribution Multi-Touch</span>
+                            <span>✓ Retenção Garantida em Contrato</span>
+                        </div>
+                    </div>
+
+                    <!-- Corporate Growth Dashboard -->
+                    <div class="lg:col-span-5">
+                        <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl p-6 space-y-5">
+                            <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                                <div>
+                                    <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">ROI Médio Validado</p>
+                                    <p class="text-3xl font-extrabold text-slate-900 mt-0.5">+340%</p>
+                                </div>
+                                <span class="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-bold">
+                                    ▲ +42.8% este trimestre
+                                </span>
+                            </div>
+                            <div class="h-44 w-full bg-slate-50 rounded-xl p-4 flex items-end justify-between gap-2.5 border border-slate-100">
+                                <div class="w-full bg-blue-200 rounded-t-md h-[26%]"></div>
+                                <div class="w-full bg-blue-300 rounded-t-md h-[41%]"></div>
+                                <div class="w-full bg-blue-400 rounded-t-md h-[54%]"></div>
+                                <div class="w-full bg-blue-500 rounded-t-md h-[69%]"></div>
+                                <div class="w-full bg-blue-600 rounded-t-md h-[84%]"></div>
+                                <div class="w-full bg-indigo-600 rounded-t-md h-[97%]"></div>
+                            </div>
+                            <div class="flex items-center justify-between text-xs text-slate-500">
+                                <span>Q1</span>
+                                <span>Q2</span>
+                                <span>Q3</span>
+                                <span>Q4</span>
+                                <span>Q5</span>
+                                <span class="font-bold text-blue-600">Atual</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Corporate Partner Logos Strip -->
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full my-20">
+                <div class="p-8 rounded-2xl bg-slate-50 border border-slate-200/80 text-center space-y-6">
+                    <p class="text-xs font-bold uppercase tracking-widest text-slate-400">Empresas que confiam na arquitetura NexusPulse</p>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-6 items-center text-slate-400 font-extrabold text-lg tracking-tight">
+                        <div>VORTEX CLOUD</div>
+                        <div>AETHER LABS</div>
+                        <div>STRATOS PAY</div>
+                        <div>HELIOS CORP</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Clean Value Propositions -->
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+                <div class="text-center max-w-2xl mx-auto mb-12 space-y-3">
+                    <span class="text-xs font-bold uppercase tracking-widest text-blue-600">Pilares de Crescimento</span>
+                    <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900">Estrutura desenhada para escala previsível</h2>
+                    <p class="text-sm sm:text-base text-slate-600">Cada etapa do nosso processo elimina desperdícios e maximiza o valor de cada visitante.</p>
+                </div>
+
+                <div class="grid md:grid-cols-3 gap-8">
+                    <div class="p-8 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
+                        <div class="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">01</div>
+                        <h3 class="text-xl font-bold text-slate-900">Aquisição Qualificada</h3>
+                        <p class="text-sm text-slate-600 leading-relaxed">Campanhas segmentadas por intenção real de compra em múltiplos canais de alta performance.</p>
+                    </div>
+                    <div class="p-8 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
+                        <div class="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">02</div>
+                        <h3 class="text-xl font-bold text-slate-900">Otimização de Conversão</h3>
+                        <p class="text-sm text-slate-600 leading-relaxed">Testes multivariados contínuos e mapas de calor para eliminar qualquer atrito na decisão.</p>
+                    </div>
+                    <div class="p-8 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
+                        <div class="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">03</div>
+                        <h3 class="text-xl font-bold text-slate-900">Retenção & LTV</h3>
+                        <p class="text-sm text-slate-600 leading-relaxed">Fluxos automatizados de engajamento que mantêm o usuário conectado ao ecossistema por anos.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- =================================================================
+             ESTÁGIO 2 (2.300px - 4.900px): PEQUENAS RACHADURAS
+             ================================================================= -->
+        <section id="stage-2" class="min-h-[2600px] flex flex-col justify-between py-28 border-t border-slate-200/70">
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 w-full space-y-24">
+                <div class="max-w-3xl mx-auto text-center space-y-4">
+                    <span class="text-xs font-bold uppercase tracking-widest text-indigo-600">Metodologia Proprietária // Camada 02</span>
+                    <h2 class="text-3xl sm:text-5xl font-extrabold tracking-tight">Como entendemos o comportamento humano</h2>
+                    <p class="text-base opacity-80 leading-relaxed">
+                        Dados tradicionais de cliques são superficiais. Nossa engine proprietária analisa camadas mais profundas da atenção humana enquanto você navega.
+                    </p>
+                </div>
+
+                <!-- 4 Cards transitioning from normal analytics to invasive biometric surveillance -->
+                <div class="grid md:grid-cols-2 gap-10">
+                    <div class="p-8 rounded-2xl border border-slate-300/70 bg-white/75 backdrop-blur-sm space-y-4 shadow-sm">
+                        <span class="text-xs font-mono uppercase tracking-wider text-blue-600">Módulo 2.1 — Telemetria Passiva</span>
+                        <h3 class="text-2xl font-bold">Mapeamento de Hesitação do Cursor</h3>
+                        <p class="text-sm opacity-85 leading-relaxed">
+                            Medimos cada milissegundo em que seu dedo ou ponteiro pausa sobre uma palavra. Sabemos exatamente quais frases causam desconforto ou curiosidade.
+                        </p>
+                    </div>
+
+                    <div class="p-8 rounded-2xl border border-slate-300/70 bg-white/75 backdrop-blur-sm space-y-4 shadow-sm">
+                        <span class="text-xs font-mono uppercase tracking-wider text-indigo-600">Módulo 2.2 — Captura Sensorial</span>
+                        <h3 class="text-2xl font-bold">Rastreamento Biométrico & Micro-Expressões</h3>
+                        <p class="text-sm opacity-85 leading-relaxed">
+                            Através da luminosidade da sua tela refletida na sua íris e do sensor da webcam, estimamos sua frequência cardíaca e dilatação pupilar em tempo real.
+                        </p>
+                    </div>
+
+                    <div class="p-8 rounded-2xl border border-slate-400/60 bg-slate-100/70 backdrop-blur-sm space-y-4 shadow-sm">
+                        <span class="text-xs font-mono uppercase tracking-wider text-slate-700">Módulo 2.3 — Perfilamento Silencioso</span>
+                        <h3 class="text-2xl font-bold jitter-subtle">Indexação de Rotina Noturna</h3>
+                        <p class="text-sm opacity-85 leading-relaxed">
+                            Cruzamos o horário em que você acessa páginas sozinho no escuro com padrões de vulnerabilidade psicológica. <span class="italic opacity-75">Você costuma dormir tarde, não é?</span>
+                        </p>
+                    </div>
+
+                    <div class="p-8 rounded-2xl border border-slate-400/60 bg-slate-100/70 backdrop-blur-sm space-y-4 shadow-sm">
+                        <span class="text-xs font-mono uppercase tracking-wider text-rose-700">Módulo 2.4 — Retenção Unidirecional</span>
+                        <h3 class="text-2xl font-bold">Funil de Gravidade Assimétrica</h3>
+                        <p class="text-sm opacity-85 leading-relaxed">
+                            Uma arquitetura desenhada para facilitar a descida e tornar o retorno fisicamente inviável. Uma vez dentro do funil, a única direção válida é para baixo.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Subtle Notice about the Ratchet Scroll -->
+                <div class="max-w-2xl mx-auto p-6 rounded-xl border border-slate-400/50 bg-slate-200/50 text-center space-y-2">
+                    <p class="text-xs font-mono uppercase tracking-widest text-slate-600">Nota Técnica de Navegação</p>
+                    <p class="text-sm font-medium opacity-90">
+                        Para garantir a integridade dos dados coletados nesta sessão, o deslocamento reverso (rolagem para cima) foi desativado para o seu perfil.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- =================================================================
+             ESTÁGIO 3 (4.900px - 7.600px): O VALE DA ESTRANHEZA
+             ================================================================= -->
+        <section id="stage-3" class="min-h-[2700px] flex flex-col justify-between py-28">
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 w-full space-y-28">
+                <div class="text-center max-w-3xl mx-auto space-y-4">
+                    <span class="text-xs font-mono uppercase tracking-widest opacity-70">Estudos de Caso Auditados // Arquivo #09</span>
+                    <h2 class="text-3xl sm:text-5xl font-extrabold tracking-tight">Resultados que desafiam a explicação convencional</h2>
+                    <p class="text-sm sm:text-base opacity-75">Os números abaixo foram extraídos diretamente dos servidores antes do isolamento da unidade.</p>
+                </div>
+
+                <!-- Glitching Metrics Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-8">
+                    <div class="p-8 rounded-2xl border border-zinc-500/40 bg-zinc-900/10 backdrop-blur-sm text-center space-y-2">
+                        <p id="s3-metric-1" class="text-4xl sm:text-5xl font-black tracking-tight horror-mono">+1.480%</p>
+                        <p class="text-xs uppercase tracking-widest opacity-75">Crescimento de Permanência</p>
+                        <p class="text-xs opacity-60 pt-2">Os usuários simplesmente param de sair.</p>
+                    </div>
+
+                    <div class="p-8 rounded-2xl border border-zinc-500/40 bg-zinc-900/10 backdrop-blur-sm text-center space-y-2">
+                        <p id="s3-metric-2" class="text-4xl sm:text-5xl font-black tracking-tight horror-mono">00:00:00</p>
+                        <p class="text-xs uppercase tracking-widest opacity-75">Tempo Médio de Saída</p>
+                        <p class="text-xs opacity-60 pt-2">Nenhum encerramento registrado desde 2024.</p>
+                    </div>
+
+                    <div class="p-8 rounded-2xl border border-zinc-500/40 bg-zinc-900/10 backdrop-blur-sm text-center space-y-2">
+                        <p id="s3-metric-3" class="text-4xl sm:text-5xl font-black tracking-tight horror-mono text-red-600">100.0%</p>
+                        <p class="text-xs uppercase tracking-widest opacity-75">Taxa de Conformidade</p>
+                        <p class="text-xs opacity-60 pt-2">Todos continuam rolando até o fim.</p>
+                    </div>
+                </div>
+
+                <!-- Subliminal Flashing Text Block -->
+                <div class="max-w-3xl mx-auto p-10 rounded-2xl border border-zinc-600/40 bg-zinc-950/20 space-y-6">
+                    <div class="flex items-center justify-between text-xs horror-mono opacity-60">
+                        <span>RELATÓRIO_CLIENTE_404.LOG</span>
+                        <span>STATUS: RETIDO</span>
+                    </div>
+                    <p id="subliminal-paragraph" class="text-base sm:text-lg leading-relaxed font-medium">
+                        "Contratamos a NexusPulse para aumentar nossas vendas trimestrais. Na primeira semana, os gráficos subiram. Na segunda semana, percebemos que os visitantes do site não eram mais clientes — eram pessoas presas olhando para a tela no escuro. Hoje, quando tentei fechar meu navegador, a página continuou descendo sozinha."
+                    </p>
+                    <div class="pt-2 flex items-center justify-between text-xs horror-mono opacity-75">
+                        <span>— Diretor de Operações, Vortex Cloud</span>
+                        <span class="text-red-500 font-bold">[CONTA ENCERRADA]</span>
+                    </div>
+                </div>
+
+                <!-- Long Unsettling Transition Corridor -->
+                <div class="py-16 text-center space-y-4">
+                    <p class="text-xs horror-mono uppercase tracking-[0.3em] opacity-60">Por que você ainda está aqui?</p>
+                    <p id="flash-message-box" class="text-xl sm:text-2xl font-bold horror-typewriter tracking-wide">
+                        Você poderia ter fechado a aba há dois mil pixels atrás.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- =================================================================
+             ESTÁGIO 4 (7.600px - 10.600px): VIGILÂNCIA E PARANOIA
+             ================================================================= -->
+        <section id="stage-4" class="min-h-[3000px] flex flex-col justify-between py-28">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full space-y-24">
+                <div class="text-center max-w-3xl mx-auto space-y-4">
+                    <span class="text-xs font-bold uppercase tracking-[0.25em] text-red-500 horror-mono">Nossa Liderança // Observadores</span>
+                    <h2 class="text-3xl sm:text-5xl font-extrabold tracking-tight chromatic-text">Os rostos que acompanham cada movimento seu</h2>
+                    <p class="text-sm sm:text-base opacity-80 horror-mono">
+                        Mova o cursor ou toque na tela. Eles não perdem você de vista nem por um segundo.
+                    </p>
+                </div>
+
+                <!-- 3 Disturbing Procedural Portraits with Cursor-Tracking Eyes -->
+                <div class="grid md:grid-cols-3 gap-8">
+                    <!-- Portrait 1 -->
+                    <div class="p-6 rounded-2xl border border-zinc-700/70 bg-zinc-950/60 backdrop-blur space-y-4">
+                        <div class="w-full h-56 rounded-xl bg-black border border-zinc-800 flex items-center justify-center overflow-hidden">
+                            <svg class="w-44 h-44" viewBox="0 0 200 200">
+                                <ellipse cx="100" cy="104" rx="56" ry="76" fill="#d4d4d8" opacity="0.82"/>
+                                <ellipse cx="100" cy="104" rx="52" ry="72" fill="#09090b" opacity="0.35"/>
+                                <circle cx="75" cy="86" r="16" fill="#000000"/>
+                                <circle cx="125" cy="86" r="16" fill="#000000"/>
+                                <circle class="tracking-pupil" data-cx="75" data-cy="86" data-max-offset="6" cx="75" cy="86" r="4.5" fill="#ef4444"/>
+                                <circle class="tracking-pupil" data-cx="125" data-cy="86" data-max-offset="6" cx="125" cy="86" r="4.5" fill="#ef4444"/>
+                                <path d="M 62 134 Q 100 174 138 134 Q 100 154 62 134 Z" fill="#000000"/>
+                                <line x1="78" y1="142" x2="78" y2="153" stroke="#e4e4e7" stroke-width="2"/>
+                                <line x1="92" y1="145" x2="92" y2="157" stroke="#e4e4e7" stroke-width="2"/>
+                                <line x1="108" y1="145" x2="108" y2="157" stroke="#e4e4e7" stroke-width="2"/>
+                                <line x1="122" y1="142" x2="122" y2="153" stroke="#e4e4e7" stroke-width="2"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold horror-typewriter">Dr. Arnaldo V.</h3>
+                            <p class="text-xs text-red-400 font-bold uppercase tracking-wider horror-mono">Diretor de Retenção</p>
+                            <p class="text-xs opacity-75 mt-2 horror-mono leading-relaxed">
+                                "Ele não pisca desde outubro de 2023. Ele sabe exatamente quantas vezes você tentou rolar para cima."
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Portrait 2 -->
+                    <div class="p-6 rounded-2xl border border-zinc-700/70 bg-zinc-950/60 backdrop-blur space-y-4">
+                        <div class="w-full h-56 rounded-xl bg-black border border-zinc-800 flex items-center justify-center overflow-hidden">
+                            <svg class="w-44 h-44" viewBox="0 0 200 200">
+                                <path d="M 52 195 C 52 110, 60 32, 100 32 C 140 32, 148 110, 148 195 Z" fill="#09090b"/>
+                                <circle cx="80" cy="82" r="11" fill="#fafafa"/>
+                                <circle class="tracking-pupil" data-cx="80" data-cy="82" data-max-offset="4.5" cx="80" cy="82" r="4" fill="#000"/>
+                                <circle cx="120" cy="82" r="11" fill="#fafafa"/>
+                                <circle class="tracking-pupil" data-cx="120" data-cy="82" data-max-offset="4.5" cx="120" cy="82" r="4" fill="#000"/>
+                                <circle cx="100" cy="56" r="8.5" fill="#fecaca"/>
+                                <circle class="tracking-pupil" data-cx="100" data-cy="56" data-max-offset="3.5" cx="100" cy="56" r="3" fill="#dc2626"/>
+                                <line x1="72" y1="126" x2="128" y2="126" stroke="#71717a" stroke-width="3"/>
+                                <line x1="82" y1="118" x2="82" y2="134" stroke="#71717a" stroke-width="2"/>
+                                <line x1="100" y1="118" x2="100" y2="134" stroke="#71717a" stroke-width="2"/>
+                                <line x1="118" y1="118" x2="118" y2="134" stroke="#71717a" stroke-width="2"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold horror-typewriter">Helena S. [Entidade #04]</h3>
+                            <p class="text-xs text-red-400 font-bold uppercase tracking-wider horror-mono">Arquiteta do Abismo</p>
+                            <p class="text-xs opacity-75 mt-2 horror-mono leading-relaxed">
+                                "O funil não tem saída superior. Cada pixel que você desce é cimentado atrás de você."
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Portrait 3 -->
+                    <div class="p-6 rounded-2xl border border-zinc-700/70 bg-zinc-950/60 backdrop-blur space-y-4">
+                        <div class="w-full h-56 rounded-xl bg-black border border-zinc-800 flex items-center justify-center overflow-hidden">
+                            <svg class="w-44 h-44" viewBox="0 0 200 200">
+                                <rect x="50" y="36" width="100" height="128" rx="46" fill="#18181b"/>
+                                <circle cx="74" cy="96" r="19" fill="#fef2f2"/>
+                                <circle class="tracking-pupil" data-cx="74" data-cy="96" data-max-offset="7" cx="74" cy="96" r="7" fill="#991b1b"/>
+                                <circle cx="127" cy="76" r="10" fill="#fef2f2"/>
+                                <circle class="tracking-pupil" data-cx="127" data-cy="76" data-max-offset="4" cx="127" cy="76" r="3.5" fill="#991b1b"/>
+                                <ellipse cx="102" cy="142" rx="17" ry="26" fill="#000000"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold horror-typewriter">O Observador</h3>
+                            <p class="text-xs text-red-400 font-bold uppercase tracking-wider horror-mono">Analista de Presença</p>
+                            <p class="text-xs opacity-75 mt-2 horror-mono leading-relaxed">
+                                "Ele está registrando sua sessão agora. Ele vê o brilho da tela no seu rosto."
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Real-Time System Clock Paranoia Box -->
+                <div class="max-w-3xl mx-auto p-8 sm:p-12 rounded-2xl border border-red-900/60 bg-black/75 text-center space-y-5 shadow-[0_0_40px_rgba(127,29,29,0.25)]">
+                    <p class="text-xs uppercase tracking-[0.3em] text-red-500 horror-mono">TELEMETRIA AO VIVO DO SEU AMBIENTE</p>
+                    <p class="text-2xl sm:text-4xl font-bold horror-typewriter text-zinc-100 leading-snug">
+                        Agora são exatamente <span id="live-system-time" class="text-red-500 underline">--:--:--</span>.
+                    </p>
+                    <p class="text-sm sm:text-base text-zinc-400 horror-mono max-w-xl mx-auto leading-relaxed">
+                        Atrás de você não tem ninguém. Mas dentro desta tela, <span class="text-red-400 font-bold">tem</span>.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- =================================================================
+             ESTÁGIO 5 (10.600px - 13.600px): CORRUPÇÃO ESTRUTURAL
+             ================================================================= -->
+        <section id="stage-5" class="min-h-[3000px] flex flex-col justify-between py-28 relative">
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 w-full space-y-28">
+                <div class="text-center space-y-4 transform -rotate-1">
+                    <p class="text-xs horror-mono text-red-500 tracking-[0.35em] uppercase">[ INTEGRIDADE DO DOM: 23% — COLAPSO ESTRUTURAL ]</p>
+                    <h2 class="text-3xl sm:text-5xl font-black uppercase horror-typewriter text-red-500 chromatic-text">
+                        A PORTA SE FECHOU ATRÁS DE VOCÊ
+                    </h2>
+                </div>
+
+                <!-- Tilted, Overlapping, Collapsing Layout Cards -->
+                <div class="relative space-y-12 sm:space-y-8">
+                    <div class="max-w-xl p-8 rounded-xl bg-zinc-950/90 border-2 border-red-900/80 transform -rotate-2 shadow-2xl space-y-3">
+                        <p class="text-xs horror-mono text-red-400">ERRO_DE_RETORNO // 0x0000DEAD</p>
+                        <h3 class="text-xl font-bold horror-typewriter text-red-200">Não adianta girar a roda do mouse para cima.</h3>
+                        <p class="text-sm horror-mono text-zinc-400 leading-relaxed">
+                            O topo da página não existe mais. A agência que você viu há alguns minutos era apenas a isca na entrada da armadilha.
+                        </p>
+                    </div>
+
+                    <div class="max-w-xl ml-auto p-8 rounded-xl bg-black/95 border-2 border-red-800 transform rotate-2 -mt-4 shadow-2xl space-y-3">
+                        <p class="text-xs horror-mono text-red-500">AVISO_DE_CONTENÇÃO</p>
+                        <h3 class="text-xl font-bold horror-typewriter text-red-300">Cada centímetro rolado é definitivo.</h3>
+                        <p class="text-sm horror-mono text-zinc-400 leading-relaxed">
+                            Você já percorreu mais de <span id="stage5-px-readout" class="text-red-500 font-bold">11.000</span> pixels para dentro da escuridão. A única saída agora atravessa o fundo.
+                        </p>
+                    </div>
+
+                    <div class="max-w-lg mx-auto p-8 rounded-xl bg-red-950/30 border border-red-700/70 transform -rotate-3 text-center space-y-3">
+                        <p class="text-lg sm:text-2xl font-bold horror-typewriter text-red-400 jitter-subtle">
+                            "Eu tentei subir. A barra travou. Algo começou a bater dentro dos meus fones de ouvido."
+                        </p>
+                        <p class="text-xs horror-mono text-red-600">— Registro recuperado do cache local</p>
+                    </div>
+                </div>
+
+                <!-- Evasive Fleeing Button Trap -->
+                <div class="py-12 text-center space-y-5">
+                    <p class="text-xs horror-mono uppercase tracking-widest text-red-400">Tentativa de Abortar Sessão:</p>
+                    <div class="relative h-24 flex items-center justify-center">
+                        <button id="fleeing-btn" class="px-7 py-3.5 rounded-lg bg-zinc-950 border-2 border-red-700 text-red-400 text-sm font-bold horror-mono shadow-xl transition-transform duration-150 cursor-pointer">
+                            Voltar ao Início
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- =================================================================
+             ESTÁGIO 6 (13.600px - 16.600px): O ABISMO PROFUNDO
+             ================================================================= -->
+        <section id="stage-6" class="min-h-[3000px] flex flex-col justify-between py-36 px-4 text-center">
+            <!-- Vast dark corridors with isolated haunting whispers -->
+            <div class="max-w-2xl mx-auto my-24 space-y-3">
+                <p class="text-xs horror-mono text-red-800 tracking-[0.4em] uppercase">14.000m</p>
+                <p class="text-2xl sm:text-4xl font-bold horror-typewriter text-red-500/90">Mais fundo.</p>
+            </div>
+
+            <div class="max-w-2xl mx-auto my-32 space-y-3">
+                <p class="text-xl sm:text-3xl horror-typewriter text-zinc-300/80">
+                    Você ouviu isso?
+                </p>
+                <p class="text-xs horror-mono text-red-700">
+                    (Não foi no seu quarto. Foi atrás da tela.)
+                </p>
+            </div>
+
+            <div class="max-w-2xl mx-auto my-32 space-y-3">
+                <p class="text-2xl sm:text-4xl font-bold horror-typewriter text-red-600 chromatic-text">
+                    Não olhe para o canto da tela.
+                </p>
+                <p class="text-xs horror-mono text-zinc-500">
+                    Ele se move quando você desvia o olhar.
+                </p>
+            </div>
+
+            <div class="max-w-2xl mx-auto my-24 space-y-3">
+                <p class="text-lg sm:text-2xl horror-mono text-red-400/90">
+                    Seu coração está batendo mais rápido, não está?
+                </p>
+            </div>
+        </section>
+
+        <!-- =================================================================
+             ESTÁGIO 7 (16.600px - 19.400px): O ENCONTRO
+             ================================================================= -->
+        <section id="stage-7" class="min-h-[2800px] flex flex-col items-center justify-between py-28 px-4 relative overflow-hidden">
+            <div class="max-w-3xl mx-auto text-center space-y-4 z-10">
+                <p class="text-xs horror-mono tracking-[0.4em] text-red-600 uppercase animate-pulse">
+                    [ SINAL DE VÍDEO CORROMPIDO // ENTIDADE DETECTADA ]
+                </p>
+                <h2 class="text-4xl sm:text-6xl font-black text-red-600 uppercase horror-typewriter chromatic-text">
+                    ELE ESTÁ AQUI.
+                </h2>
+                <p class="text-sm sm:text-base horror-mono text-red-200/80 max-w-lg mx-auto">
+                    Ele esperou você descer dezenove mil pixels. Agora todos os olhos dele pertencem a você.
+                </p>
+            </div>
+
+            <!-- Colossal Procedural Nightmare Entity with 18 Cursor-Tracking Eyes -->
+            <div class="w-full max-w-4xl mx-auto my-12 flex items-center justify-center z-10">
+                <svg id="nightmare-entity" class="w-full max-w-[820px] h-auto drop-shadow-[0_0_55px_rgba(220,38,38,0.5)]" viewBox="0 0 800 540">
+                    <defs>
+                        <radialGradient id="abyssGlow" cx="50%" cy="50%" r="50%">
+                            <stop offset="0%" stop-color="#991b1b" stop-opacity="0.6"/>
+                            <stop offset="65%" stop-color="#1f0000" stop-opacity="0.25"/>
+                            <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+                        </radialGradient>
+                        <filter id="entityNoise">
+                            <feTurbulence type="fractalNoise" baseFrequency="0.028" numOctaves="3" result="noise"/>
+                            <feDisplacementMap in="SourceGraphic" in2="noise" scale="14" xChannelSelector="R" yChannelSelector="G"/>
+                        </filter>
+                    </defs>
+
+                    <ellipse cx="400" cy="275" rx="370" ry="240" fill="url(#abyssGlow)"/>
+
+                    <!-- Writhing Shadow Tendrils -->
+                    <g stroke="#080000" stroke-width="15" fill="none" stroke-linecap="round" filter="url(#entityNoise)">
+                        <path d="M 400 320 Q 210 250 75 105"/>
+                        <path d="M 400 320 Q 590 250 725 105"/>
+                        <path d="M 400 355 Q 170 380 30 315"/>
+                        <path d="M 400 355 Q 630 380 770 315"/>
+                        <path d="M 400 390 Q 240 465 115 520"/>
+                        <path d="M 400 390 Q 560 465 685 520"/>
+                        <path d="M 320 230 Q 230 120 175 30"/>
+                        <path d="M 480 230 Q 570 120 625 30"/>
+                    </g>
+
+                    <!-- Monolithic Dark Silhouette -->
+                    <path d="M 230 530 C 200 340, 245 120, 400 100 C 555 120, 600 340, 570 530 Z" fill="#040000" stroke="#450a0a" stroke-width="3"/>
+
+                    <!-- Cluster of Unblinking Eyes populated via JS -->
+                    <g id="entity-eyes-group"></g>
+
+                    <!-- Jagged Abyssal Maw -->
+                    <path d="M 305 390 Q 400 485 495 390 Q 400 420 305 390 Z" fill="#000000" stroke="#991b1b" stroke-width="3"/>
+                    <g fill="#f4f4f5" opacity="0.88">
+                        <polygon points="325,398 332,426 339,401"/>
+                        <polygon points="352,405 360,440 368,407"/>
+                        <polygon points="380,409 389,450 398,410"/>
+                        <polygon points="404,410 413,450 422,409"/>
+                        <polygon points="432,407 440,440 448,405"/>
+                        <polygon points="461,401 468,426 475,398"/>
+                        <polygon points="342,430 349,408 356,434"/>
+                        <polygon points="374,440 382,412 390,444"/>
+                        <polygon points="410,444 418,412 426,440"/>
+                        <polygon points="444,434 451,408 458,430"/>
+                    </g>
+                </svg>
+            </div>
+
+            <div class="max-w-xl mx-auto text-center z-10">
+                <p class="text-sm sm:text-lg horror-typewriter text-red-400">
+                    Falta apenas um passo para assinar o contrato.
+                </p>
+            </div>
+        </section>
+
+        <!-- =================================================================
+             ESTÁGIO 8 (19.400px - 21.400px): O FIM / CONTRATO & JUMPSCARE
+             ================================================================= -->
+        <section id="stage-8" class="min-h-[1900px] flex flex-col items-center justify-end pb-32 px-4 relative">
+            <div class="max-w-xl w-full p-8 sm:p-10 rounded-2xl bg-black/95 border-2 border-red-700 shadow-[0_0_70px_rgba(220,38,38,0.45)] text-center space-y-6 z-20">
+                <p class="text-xs text-red-500 horror-mono uppercase tracking-[0.3em]">
+                    FUNDO ABSOLUTO DO FUNIL — 21.000m
+                </p>
+                <h2 class="text-3xl sm:text-4xl font-black text-red-600 uppercase horror-typewriter chromatic-text">
+                    CONCLUIR CADASTRO DE ALMA
+                </h2>
+                <p class="text-xs sm:text-sm text-zinc-300 horror-mono leading-relaxed">
+                    Você desceu voluntariamente até o fim. Não existe botão de voltar. Ao aceitar, sua presença nesta página torna-se permanente.
+                </p>
+
+                <div class="pt-2 space-y-4">
+                    <button id="accept-soul-btn" class="w-full py-4 px-6 rounded-xl bg-red-700 hover:bg-red-600 text-white font-black text-base sm:text-lg tracking-widest uppercase horror-typewriter crimson-pulse cursor-pointer transition-colors">
+                        ACEITAR E ENTREGAR
+                    </button>
+
+                    <!-- Multiplying / Fleeing Refusal Buttons Container -->
+                    <div id="refuse-buttons-zone" class="flex flex-wrap items-center justify-center gap-2 pt-2 min-h-[48px]">
+                        <button class="refuse-btn px-4 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-400 text-xs horror-mono hover:border-red-600 hover:text-red-400 transition-all cursor-pointer">
+                            Recusar Contrato
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        /**
+         * NEXUSPULSE — 8-STAGE PSYCHOLOGICAL HORROR & RATCHET SCROLL ENGINE
+         * Features:
+         * 1. Irreversible Ratchet Scroll Lock (blocks mouse wheel, touch swipe up, keyboard up/PageUp/Home, and scrollbar drag up)
+         * 2. ~21,000px 8-stage gradual visual & narrative degradation
+         * 3. Procedural Analog Static Canvas + Jumpscare Distorted Face Canvas
+         * 4. Real-time Cursor-Tracking Eyes (Stage 4 Team + Stage 7 Colossal Entity)
+         * 5. Web Audio API Procedural Soundscape (Sub-bass drone, static hiss, escalating heartbeat, jumpscare sting)
+         */
+
+        (function () {
+            // --- DOM ELEMENTS ---
+            const body = document.body;
+            const header = document.getElementById('main-header');
+            const staticCanvas = document.getElementById('static-canvas');
+            const staticCtx = staticCanvas.getContext('2d');
+            const crtScanlines = document.getElementById('crt-scanlines');
+            const vignetteOverlay = document.getElementById('vignette-overlay');
+            const bloodTint = document.getElementById('blood-tint');
+            const strobeLayer = document.getElementById('strobe-layer');
+            const peripheralShadow = document.getElementById('peripheral-shadow');
+            const scrollLockToast = document.getElementById('scroll-lock-toast');
+            const depthMeters = document.getElementById('depth-meters');
+            const depthBadge = document.getElementById('depth-badge');
+
+            // Stage Specific Elements
+            const creepyChat = document.getElementById('creepy-chat');
+            const chatMessages = document.getElementById('chat-messages');
+            const closeChatBtn = document.getElementById('close-chat-btn');
+            const liveSystemTime = document.getElementById('live-system-time');
+            const stage5PxReadout = document.getElementById('stage5-px-readout');
+            const fleeingBtn = document.getElementById('fleeing-btn');
+            const acceptSoulBtn = document.getElementById('accept-soul-btn');
+            const refuseButtonsZone = document.getElementById('refuse-buttons-zone');
+            const jumpscareOverlay = document.getElementById('jumpscare-overlay');
+            const jumpscareCanvas = document.getElementById('jumpscare-canvas');
+            const inspectAbyssBtn = document.getElementById('inspect-abyss-btn');
+
+            // Audio Controls
+            const audioToggle = document.getElementById('audio-toggle');
+            const audioDot = document.getElementById('audio-dot');
+            const audioLabel = document.getElementById('audio-label');
+
+            // --- STATE ---
+            let maxScrollY = 0; // Highest downward point reached (in pixels)
+            let scrollProgress = 0; // 0.0 -> 1.0
+            let mouseX = window.innerWidth / 2;
+            let mouseY = window.innerHeight / 2;
+            let lastTouchY = null;
+            let toastTimeout = null;
+            let lastToastTime = 0;
+            let lastEchoTime = 0;
+            let chatShown = false;
+            let chatEscalated = false;
+            let jumpscareTriggered = false;
+            let fleeCount = 0;
+
+            // --- 1. RATCHET SCROLL LOCK (IRREVERSIBLE DOWNWARD DESCENT) ---
+            function showRatchetWarning() {
+                // Only warn once user has descended past Stage 1 (> 1400px)
+                if (maxScrollY < 1400) return;
+
+                const now = performance.now();
+                if (now - lastToastTime < 900) return;
+                lastToastTime = now;
+
+                const messages = [
+                    '[ NÃO HÁ VOLTA — CONTINUE DESCENDO ]',
+                    '[ O CAMINHO PARA CIMA FOI SELADO ]',
+                    '[ VOCÊ NÃO PODE MAIS SUBIR ]',
+                    '[ A PORTA FECHOU ATRÁS DE VOCÊ ]',
+                    '[ APENAS PARA BAIXO ]'
+                ];
+                const idx = Math.min(messages.length - 1, Math.floor((maxScrollY / 16000) * messages.length));
+                scrollLockToast.textContent = messages[idx];
+                scrollLockToast.classList.add('visible');
+
+                // Subtle horizontal screen bump when hitting the ceiling
+                body.classList.remove('ratchet-bump');
+                void body.offsetWidth;
+                body.classList.add('ratchet-bump');
+
+                clearTimeout(toastTimeout);
+                toastTimeout = setTimeout(() => {
+                    scrollLockToast.classList.remove('visible');
+                }, 1500);
+            }
+
+            // Enforce ratchet lock on every scroll frame
+            function enforceRatchetScroll() {
+                const currentY = window.scrollY || window.pageYOffset;
+                if (currentY > maxScrollY) {
+                    maxScrollY = currentY;
+                } else if (currentY < maxScrollY - 2) {
+                    // User dragged scrollbar or browser attempted upward scroll
+                    window.scrollTo(0, maxScrollY);
+                    showRatchetWarning();
+                }
+            }
+
+            // Intercept upward Mouse Wheel / Trackpad immediately
+            window.addEventListener('wheel', (e) => {
+                if (e.deltaY < 0 && maxScrollY > 250) {
+                    e.preventDefault();
+                    window.scrollTo(0, maxScrollY);
+                    showRatchetWarning();
+                }
+            }, { passive: false });
+
+            // Intercept upward Touch Swipe on Mobile
+            window.addEventListener('touchstart', (e) => {
+                if (e.touches.length > 0) {
+                    lastTouchY = e.touches[0].clientY;
+                }
+            }, { passive: true });
+
+            window.addEventListener('touchmove', (e) => {
+                if (e.touches.length > 0 && lastTouchY !== null) {
+                    const currentTouchY = e.touches[0].clientY;
+                    const deltaY = currentTouchY - lastTouchY; // Positive means finger swiping down -> scrolling UP
+                    if (deltaY > 4 && maxScrollY > 250) {
+                        e.preventDefault();
+                        window.scrollTo(0, maxScrollY);
+                        showRatchetWarning();
+                    }
+                    lastTouchY = currentTouchY;
+                }
+            }, { passive: false });
+
+            // Intercept upward Keyboard keys (ArrowUp, PageUp, Home, Shift+Space)
+            window.addEventListener('keydown', (e) => {
+                const upwardKeys = ['ArrowUp', 'PageUp', 'Home'];
+                if (upwardKeys.includes(e.key) || (e.key === ' ' && e.shiftKey)) {
+                    if (maxScrollY > 250) {
+                        e.preventDefault();
+                        window.scrollTo(0, maxScrollY);
+                        showRatchetWarning();
+                    }
+                }
+            });
+
+            // Smooth downward scroll helpers for initial corporate CTA buttons
+            document.getElementById('hero-start-btn').addEventListener('click', () => {
+                window.scrollBy({ top: 950, behavior: 'smooth' });
+            });
+            document.getElementById('header-cta').addEventListener('click', () => {
+                window.scrollBy({ top: 1200, behavior: 'smooth' });
+            });
+
+            // --- 2. PROCEDURAL ENTITY EYES (STAGE 7) ---
+            const entityEyesGroup = document.getElementById('entity-eyes-group');
+            const eyeSpecs = [
+                { cx: 400, cy: 185, r: 30, iris: '#dc2626' },
+                { cx: 320, cy: 215, r: 20, iris: '#ef4444' },
+                { cx: 480, cy: 215, r: 20, iris: '#ef4444' },
+                { cx: 355, cy: 150, r: 15, iris: '#f87171' },
+                { cx: 445, cy: 150, r: 15, iris: '#f87171' },
+                { cx: 280, cy: 270, r: 17, iris: '#dc2626' },
+                { cx: 520, cy: 270, r: 17, iris: '#dc2626' },
+                { cx: 362, cy: 262, r: 22, iris: '#b91c1c' },
+                { cx: 438, cy: 262, r: 22, iris: '#b91c1c' },
+                { cx: 400, cy: 315, r: 18, iris: '#ef4444' },
+                { cx: 312, cy: 322, r: 13, iris: '#fca5a5' },
+                { cx: 488, cy: 322, r: 13, iris: '#fca5a5' },
+                { cx: 260, cy: 208, r: 12, iris: '#dc2626' },
+                { cx: 540, cy: 208, r: 12, iris: '#dc2626' },
+                { cx: 400, cy: 125, r: 12, iris: '#ef4444' },
+                { cx: 342, cy: 350, r: 10, iris: '#dc2626' },
+                { cx: 458, cy: 350, r: 10, iris: '#dc2626' }
+            ];
+
+            eyeSpecs.forEach((eye) => {
+                const ns = 'http://www.w3.org/2000/svg';
+                const sclera = document.createElementNS(ns, 'circle');
+                sclera.setAttribute('cx', eye.cx);
+                sclera.setAttribute('cy', eye.cy);
+                sclera.setAttribute('r', eye.r);
+                sclera.setAttribute('fill', '#fef2f2');
+                sclera.setAttribute('stroke', '#450a0a');
+                sclera.setAttribute('stroke-width', '2.5');
+
+                const iris = document.createElementNS(ns, 'circle');
+                iris.setAttribute('cx', eye.cx);
+                iris.setAttribute('cy', eye.cy);
+                iris.setAttribute('r', eye.r * 0.56);
+                iris.setAttribute('fill', eye.iris);
+                iris.classList.add('tracking-pupil');
+                iris.dataset.cx = eye.cx;
+                iris.dataset.cy = eye.cy;
+                iris.dataset.maxOffset = (eye.r * 0.35).toFixed(1);
+
+                const pupil = document.createElementNS(ns, 'circle');
+                pupil.setAttribute('cx', eye.cx);
+                pupil.setAttribute('cy', eye.cy);
+                pupil.setAttribute('r', eye.r * 0.27);
+                pupil.setAttribute('fill', '#000000');
+                pupil.classList.add('tracking-pupil');
+                pupil.dataset.cx = eye.cx;
+                pupil.dataset.cy = eye.cy;
+                pupil.dataset.maxOffset = (eye.r * 0.38).toFixed(1);
+
+                entityEyesGroup.appendChild(sclera);
+                entityEyesGroup.appendChild(iris);
+                entityEyesGroup.appendChild(pupil);
+            });
+
+            // --- 3. WEB AUDIO API PROCEDURAL HORROR SOUNDSCAPE ---
+            let audioCtx = null;
+            let isAudioEnabled = true;
+            let isAudioInitialized = false;
+            let droneGain = null;
+            let droneOsc1 = null;
+            let droneOsc2 = null;
+            let noiseGain = null;
+            let heartbeatTimer = null;
+
+            function initHorrorAudio() {
+                if (isAudioInitialized) return;
+                try {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    audioCtx = new AudioContext();
+
+                    // Sub-bass drone
+                    droneOsc1 = audioCtx.createOscillator();
+                    droneOsc2 = audioCtx.createOscillator();
+                    droneGain = audioCtx.createGain();
+
+                    droneOsc1.type = 'sawtooth';
+                    droneOsc1.frequency.setValueAtTime(44, audioCtx.currentTime);
+
+                    droneOsc2.type = 'sine';
+                    droneOsc2.frequency.setValueAtTime(46.5, audioCtx.currentTime);
+
+                    const lowpass = audioCtx.createBiquadFilter();
+                    lowpass.type = 'lowpass';
+                    lowpass.frequency.setValueAtTime(105, audioCtx.currentTime);
+
+                    droneGain.gain.setValueAtTime(0.0005, audioCtx.currentTime);
+
+                    droneOsc1.connect(lowpass);
+                    droneOsc2.connect(lowpass);
+                    lowpass.connect(droneGain);
+                    droneGain.connect(audioCtx.destination);
+
+                    droneOsc1.start();
+                    droneOsc2.start();
+
+                    // Analog static hiss
+                    const bufferSize = 2 * audioCtx.sampleRate;
+                    const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                    const output = noiseBuffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) {
+                        output[i] = Math.random() * 2 - 1;
+                    }
+                    const whiteNoise = audioCtx.createBufferSource();
+                    whiteNoise.buffer = noiseBuffer;
+                    whiteNoise.loop = true;
+
+                    const bandpass = audioCtx.createBiquadFilter();
+                    bandpass.type = 'bandpass';
+                    bandpass.frequency.setValueAtTime(1350, audioCtx.currentTime);
+                    bandpass.Q.setValueAtTime(3.2, audioCtx.currentTime);
+
+                    noiseGain = audioCtx.createGain();
+                    noiseGain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+
+                    whiteNoise.connect(bandpass);
+                    bandpass.connect(noiseGain);
+                    noiseGain.connect(audioCtx.destination);
+                    whiteNoise.start();
+
+                    // Accelerating heartbeat loop based on depth
+                    function scheduleHeartbeat() {
+                        const p = jumpscareTriggered ? 1 : scrollProgress;
+                        const intervalMs = Math.max(460, 1150 - p * 650);
+                        if (isAudioEnabled && audioCtx && audioCtx.state === 'running' && p > 0.42) {
+                            triggerHeartbeat(Math.min(1, (p - 0.4) * 1.7));
+                        }
+                        heartbeatTimer = setTimeout(scheduleHeartbeat, intervalMs);
+                    }
+                    scheduleHeartbeat();
+
+                    isAudioInitialized = true;
+                } catch (e) {
+                    // Fail gracefully
+                }
+            }
+
+            function triggerHeartbeat(intensity) {
+                if (!audioCtx || !isAudioEnabled) return;
+                const now = audioCtx.currentTime;
+                [0, 0.2].forEach((offset, idx) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(idx === 0 ? 60 : 48, now + offset);
+                    osc.frequency.exponentialRampToValueAtTime(22, now + offset + 0.16);
+
+                    gain.gain.setValueAtTime(0.001, now + offset);
+                    gain.gain.linearRampToValueAtTime(0.2 * intensity, now + offset + 0.03);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.18);
+
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now + offset);
+                    osc.stop(now + offset + 0.2);
+                });
+            }
+
+            function triggerJumpscareAudio() {
+                if (!audioCtx) initHorrorAudio();
+                if (!audioCtx || !isAudioEnabled) return;
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                const now = audioCtx.currentTime;
+                // Piercing dissonant cluster + heavy sub drop
+                [55, 110, 116.5, 466.16, 622.25, 1318.5, 1864.6].forEach((freq) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(freq, now);
+                    osc.frequency.exponentialRampToValueAtTime(freq * 0.68, now + 1.8);
+
+                    gain.gain.setValueAtTime(0.001, now);
+                    gain.gain.linearRampToValueAtTime(0.15, now + 0.03);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.9);
+
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 1.95);
+                });
+            }
+
+            function updateAudioLevels(p) {
+                if (!isAudioInitialized || !audioCtx || !isAudioEnabled) return;
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume().catch(() => {});
+                }
+                const now = audioCtx.currentTime;
+                const intensity = jumpscareTriggered ? 1 : p;
+
+                // Very subtle hum from 5% scroll, escalating steadily to 100%
+                const targetDrone = intensity < 0.04 ? 0.0005 : Math.pow(intensity, 1.35) * 0.24;
+                const targetNoise = intensity < 0.2 ? 0.0001 : Math.pow((intensity - 0.2) / 0.8, 1.5) * 0.055;
+
+                droneGain.gain.setTargetAtTime(targetDrone, now, 0.15);
+                noiseGain.gain.setTargetAtTime(targetNoise, now, 0.15);
+
+                if (droneOsc1 && droneOsc2) {
+                    droneOsc1.frequency.setTargetAtTime(44 - intensity * 12, now, 0.2);
+                    droneOsc2.frequency.setTargetAtTime(46.5 - intensity * 10, now, 0.2);
+                }
+            }
+
+            ['click', 'scroll', 'touchstart', 'keydown'].forEach((evt) => {
+                window.addEventListener(evt, () => {
+                    if (!isAudioInitialized) initHorrorAudio();
+                    if (audioCtx && audioCtx.state === 'suspended' && isAudioEnabled) {
+                        audioCtx.resume().catch(() => {});
+                    }
+                }, { once: true, passive: true });
+            });
+
+            audioToggle.addEventListener('click', () => {
+                if (!isAudioInitialized) initHorrorAudio();
+                isAudioEnabled = !isAudioEnabled;
+                if (!isAudioEnabled) {
+                    audioDot.className = 'w-2 h-2 rounded-full bg-zinc-400';
+                    audioLabel.textContent = 'Áudio Ambiente: Mudo';
+                    if (droneGain && audioCtx) droneGain.gain.setTargetAtTime(0.0001, audioCtx.currentTime, 0.05);
+                    if (noiseGain && audioCtx) noiseGain.gain.setTargetAtTime(0.0001, audioCtx.currentTime, 0.05);
+                } else {
+                    audioDot.className = 'w-2 h-2 rounded-full bg-red-500 animate-ping';
+                    audioLabel.textContent = 'Áudio Ambiente: Ativo';
+                    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+                    updateAudioLevels(scrollProgress);
+                }
+            });
+
+            // --- 4. ANALOG STATIC NOISE CANVAS ---
+            function resizeStaticCanvas() {
+                staticCanvas.width = Math.floor(window.innerWidth / 3);
+                staticCanvas.height = Math.floor(window.innerHeight / 3);
+            }
+            window.addEventListener('resize', resizeStaticCanvas);
+            resizeStaticCanvas();
+
+            function renderStaticNoise() {
+                const intensity = jumpscareTriggered ? 0.38 : Math.max(0, (scrollProgress - 0.18) * 0.45);
+                staticCanvas.style.opacity = intensity.toFixed(3);
+
+                if (intensity > 0.01) {
+                    const w = staticCanvas.width;
+                    const h = staticCanvas.height;
+                    const imgData = staticCtx.createImageData(w, h);
+                    const buffer = new Uint32Array(imgData.data.buffer);
+                    const len = buffer.length;
+
+                    for (let i = 0; i < len; i++) {
+                        if (Math.random() < 0.34) {
+                            const v = (Math.random() * 255) | 0;
+                            buffer[i] = (200 << 24) | (v << 16) | (v << 8) | v;
+                        }
+                    }
+                    staticCtx.putImageData(imgData, 0, 0);
+                }
+                requestAnimationFrame(renderStaticNoise);
+            }
+            requestAnimationFrame(renderStaticNoise);
+
+            // --- 5. CURSOR-TRACKING EYES & GHOST ECHO ---
+            function updateCursorTracking(x, y) {
+                mouseX = x;
+                mouseY = y;
+
+                const pupils = document.querySelectorAll('.tracking-pupil');
+                pupils.forEach((pupil) => {
+                    const svg = pupil.ownerSVGElement;
+                    if (!svg) return;
+                    const rect = svg.getBoundingClientRect();
+                    if (rect.width === 0 || rect.bottom < 0 || rect.top > window.innerHeight) return;
+
+                    const cx = parseFloat(pupil.dataset.cx);
+                    const cy = parseFloat(pupil.dataset.cy);
+                    const maxOffset = parseFloat(pupil.dataset.maxOffset || '5.5');
+
+                    const viewBox = svg.viewBox.baseVal;
+                    const scaleX = rect.width / viewBox.width;
+                    const scaleY = rect.height / viewBox.height;
+
+                    const eyeScreenX = rect.left + cx * scaleX;
+                    const eyeScreenY = rect.top + cy * scaleY;
+
+                    const dx = mouseX - eyeScreenX;
+                    const dy = mouseY - eyeScreenY;
+                    const angle = Math.atan2(dy, dx);
+                    const dist = Math.min(maxOffset, Math.hypot(dx, dy) / 24);
+
+                    pupil.setAttribute('cx', (cx + Math.cos(angle) * dist).toFixed(2));
+                    pupil.setAttribute('cy', (cy + Math.sin(angle) * dist).toFixed(2));
+                });
+
+                // Crimson cursor ghost trail in Stage 5+
+                const now = performance.now();
+                if ((scrollProgress > 0.48 || jumpscareTriggered) && now - lastEchoTime > 65) {
+                    lastEchoTime = now;
+                    const echo = document.createElement('div');
+                    echo.className = 'cursor-echo';
+                    echo.style.left = `${mouseX}px`;
+                    echo.style.top = `${mouseY}px`;
+                    body.appendChild(echo);
+                    requestAnimationFrame(() => {
+                        echo.style.opacity = '0';
+                        echo.style.transform = 'translate(-50%, -50%) scale(2.5)';
+                    });
+                    setTimeout(() => echo.remove(), 560);
+                }
+            }
+
+            window.addEventListener('mousemove', (e) => updateCursorTracking(e.clientX, e.clientY), { passive: true });
+            window.addEventListener('touchmove', (e) => {
+                if (e.touches.length > 0) {
+                    updateCursorTracking(e.touches[0].clientX, e.touches[0].clientY);
+                }
+            }, { passive: true });
+
+            // --- 6. LIVE SYSTEM CLOCK & PERIPHERAL SHADOWS ---
+            function updateSystemClock() {
+                const now = new Date();
+                liveSystemTime.textContent = now.toLocaleTimeString('pt-BR');
+            }
+            setInterval(updateSystemClock, 1000);
+            updateSystemClock();
+
+            // Periodic peripheral shadow darting across the edge of the screen in Stage 6+
+            setInterval(() => {
+                if (scrollProgress < 0.62 || jumpscareTriggered) return;
+                const fromLeft = Math.random() > 0.5;
+                peripheralShadow.style.left = fromLeft ? '-40px' : 'auto';
+                peripheralShadow.style.right = fromLeft ? 'auto' : '-40px';
+                peripheralShadow.style.transform = fromLeft ? 'translateX(35px)' : 'translateX(-35px)';
+                peripheralShadow.style.opacity = '0.88';
+
+                setTimeout(() => {
+                    peripheralShadow.style.opacity = '0';
+                    peripheralShadow.style.transform = fromLeft ? 'translateX(-120px)' : 'translateX(120px)';
+                }, 260);
+            }, 4800);
+
+            // --- 7. GRADUAL 8-STAGE ATMOSPHERIC DEGRADATION ---
+            function lerp(a, b, t) {
+                return a + (b - a) * Math.max(0, Math.min(1, t));
+            }
+
+            function lerpColor(rgb1, rgb2, t) {
+                const r = Math.round(lerp(rgb1[0], rgb2[0], t));
+                const g = Math.round(lerp(rgb1[1], rgb2[1], t));
+                const b = Math.round(lerp(rgb1[2], rgb2[2], t));
+                return `rgb(${r}, ${g}, ${b})`;
+            }
+
+            function handleScrollProgression() {
+                enforceRatchetScroll();
+
+                const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+                scrollProgress = docHeight > 0 ? Math.max(0, Math.min(1, maxScrollY / docHeight)) : 0;
+
+                const p = jumpscareTriggered ? 1 : scrollProgress;
+                document.documentElement.style.setProperty('--scroll-p', p.toFixed(4));
+                document.documentElement.style.setProperty('--horror-intensity', Math.max(0, (p - 0.25) / 0.75).toFixed(3));
+
+                // Update depth indicator in meters
+                depthMeters.textContent = `${Math.round(maxScrollY)}m`;
+                if (stage5PxReadout) {
+                    stage5PxReadout.textContent = Math.round(maxScrollY).toLocaleString('pt-BR');
+                }
+
+                // Gradual Color Palette Shift across the 21,000px descent:
+                // 0.00 -> 0.14 (Stage 1): Pure Corporate White (#ffffff)
+                // 0.14 -> 0.34 (Stage 2-3): Cold Ash / Faded Concrete (#e2e8f0 -> #52525b)
+                // 0.34 -> 0.56 (Stage 4-5): Bruised Charcoal (#52525b -> #140808)
+                // 0.56 -> 1.00 (Stage 6-8): Pitch Abyssal Black (#030000)
+                let bgColor, textColor;
+                if (p < 0.14) {
+                    const t = p / 0.14;
+                    bgColor = lerpColor([255, 255, 255], [241, 245, 249], t);
+                    textColor = lerpColor([15, 23, 42], [30, 41, 59], t);
+                } else if (p < 0.34) {
+                    const t = (p - 0.14) / 0.20;
+                    bgColor = lerpColor([241, 245, 249], [71, 75, 82], t);
+                    textColor = lerpColor([30, 41, 59], [228, 228, 231], t);
+                } else if (p < 0.56) {
+                    const t = (p - 0.34) / 0.22;
+                    bgColor = lerpColor([71, 75, 82], [18, 5, 5], t);
+                    textColor = lerpColor([228, 228, 231], [248, 113, 113], t);
+                } else {
+                    const t = (p - 0.56) / 0.44;
+                    bgColor = lerpColor([18, 5, 5], [3, 0, 0], t);
+                    textColor = lerpColor([248, 113, 113], [220, 38, 38], t);
+                }
+
+                body.style.backgroundColor = bgColor;
+                body.style.color = textColor;
+
+                // Header degradation & disappearance as user descends past Stage 3
+                if (p < 0.22) {
+                    header.style.opacity = '1';
+                    header.style.transform = 'translateY(0)';
+                } else if (p < 0.36) {
+                    const t = (p - 0.22) / 0.14;
+                    header.style.backgroundColor = 'rgba(24, 24, 27, 0.92)';
+                    header.style.borderColor = 'rgba(127, 29, 29, 0.6)';
+                    document.getElementById('brand-name').innerHTML = 'Nexus<span class="text-red-500">Abismo</span>';
+                    document.getElementById('header-cta').textContent = 'SEM RETORNO';
+                    document.getElementById('header-cta').className = 'px-4 py-2 rounded-xl bg-red-900 text-red-100 text-xs font-bold horror-mono';
+                    header.style.opacity = (1 - t).toFixed(2);
+                } else {
+                    header.style.opacity = '0';
+                    header.style.pointerEvents = 'none';
+                }
+
+                // HUD Pill styling degradation
+                if (p > 0.32) {
+                    body.classList.add('stage-dark');
+                    depthBadge.className = 'px-3.5 py-2 rounded-full text-xs font-bold bg-zinc-950/90 backdrop-blur border border-red-900/70 text-red-400 shadow-lg horror-mono';
+                    audioToggle.className = 'flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-medium bg-zinc-950/90 backdrop-blur border border-red-900/70 text-red-300 shadow-lg cursor-pointer horror-mono';
+                }
+                if (p > 0.65) {
+                    body.classList.add('stage-abyss');
+                }
+
+                // Overlays intensity
+                crtScanlines.style.opacity = Math.max(0, (p - 0.15) * 0.95).toFixed(2);
+                vignetteOverlay.style.opacity = Math.max(0, (p - 0.12) * 1.15).toFixed(2);
+                bloodTint.style.opacity = Math.max(0, (p - 0.45) * 1.4).toFixed(2);
+
+                // Stage 3 Chat Trigger (~25% scroll / ~5300px)
+                if (p > 0.25 && !chatShown) {
+                    chatShown = true;
+                    creepyChat.classList.remove('hidden');
+                    requestAnimationFrame(() => {
+                        creepyChat.classList.remove('translate-y-10', 'opacity-0');
+                    });
+                }
+
+                // Stage 5 Chat Escalation (~52% scroll / ~11000px)
+                if (p > 0.52 && !chatEscalated) {
+                    chatEscalated = true;
+                    document.getElementById('chat-status-dot').className = 'w-2.5 h-2.5 rounded-full bg-red-600 animate-ping';
+                    document.getElementById('chat-header-title').textContent = 'OBSERVADOR // ATIVO';
+                    document.getElementById('chat-header-title').className = 'text-xs font-bold tracking-wider uppercase text-red-500 horror-mono';
+                    creepyChat.classList.add('border-red-800');
+
+                    const msg = document.createElement('p');
+                    msg.className = 'bg-red-950/90 p-2.5 rounded border border-red-700 text-red-200 font-bold';
+                    msg.textContent = 'Você já tentou subir, né? Não funciona mais. Continue descendo até o fundo.';
+                    chatMessages.appendChild(msg);
+                }
+
+                // Stage 7-8 Strobe Flash (> 82% scroll)
+                if (p > 0.82 && !jumpscareTriggered) {
+                    strobeLayer.style.animation = 'strobeFlash 3.1s infinite';
+                } else {
+                    strobeLayer.style.animation = 'none';
+                    strobeLayer.style.opacity = '0';
+                }
+
+                // Auto-trigger Jumpscare if user reaches the absolute bottom (99.4%+)
+                if (p >= 0.994 && !jumpscareTriggered) {
+                    triggerFinalJumpscare();
+                }
+
+                updateAudioLevels(p);
+            }
+
+            window.addEventListener('scroll', handleScrollProgression, { passive: true });
+            handleScrollProgression();
+
+            // --- 8. INTERACTIVE HORROR EVENTS ---
+
+            // Chat Close Button refuses to close
+            closeChatBtn.addEventListener('click', () => {
+                const refusal = document.createElement('p');
+                refusal.className = 'bg-red-950 p-2 rounded border border-red-600 text-red-400 text-[11px]';
+                refusal.textContent = 'Você não pode fechar esta conversa.';
+                chatMessages.appendChild(refusal);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            });
+
+            // Stage 5 Fleeing Button
+            const fleeTexts = [
+                'O topo sumiu.',
+                'Tarde demais.',
+                'Não há saída.',
+                'Continue descendo.',
+                'Você já é nosso.'
+            ];
+
+            function dodgeFleeButton() {
+                const maxX = Math.min(220, window.innerWidth * 0.32);
+                const maxY = 55;
+                const rx = (Math.random() * 2 - 1) * maxX;
+                const ry = (Math.random() * 2 - 1) * maxY;
+                fleeingBtn.style.transform = `translate(${rx}px, ${ry}px) rotate(${(Math.random() * 14 - 7)}deg)`;
+                fleeingBtn.textContent = fleeTexts[fleeCount % fleeTexts.length];
+                fleeingBtn.classList.add('bg-red-950', 'text-red-200', 'border-red-500');
+                fleeCount++;
+            }
+
+            fleeingBtn.addEventListener('mouseenter', dodgeFleeButton);
+            fleeingBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                dodgeFleeButton();
+            });
+
+            // Stage 8 Multiplying Refusal Buttons
+            function bindRefuseButton(btn) {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    btn.textContent = 'NEGADO';
+                    btn.className = 'px-3 py-1.5 rounded bg-red-950 border border-red-700 text-red-400 text-xs horror-mono';
+
+                    if (refuseButtonsZone.children.length < 12) {
+                        for (let i = 0; i < 2; i++) {
+                            const clone = document.createElement('button');
+                            clone.textContent = Math.random() > 0.5 ? 'ACEITE' : 'SEM SAÍDA';
+                            clone.className = 'px-3 py-1.5 rounded bg-zinc-900 border border-red-800 text-red-300 text-xs horror-mono cursor-pointer';
+                            bindRefuseButton(clone);
+                            refuseButtonsZone.appendChild(clone);
+                        }
+                    } else {
+                        triggerFinalJumpscare();
+                    }
+                });
+            }
+            document.querySelectorAll('.refuse-btn').forEach(bindRefuseButton);
+
+            // Procedural Distorted Nightmare Face on Jumpscare Canvas
+            function drawJumpscareFace() {
+                const ctx = jumpscareCanvas.getContext('2d');
+                jumpscareCanvas.width = 360;
+                jumpscareCanvas.height = 360;
+
+                let frame = 0;
+                function animateFace() {
+                    ctx.fillStyle = '#000000';
+                    ctx.fillRect(0, 0, 360, 360);
+
+                    const jx = (Math.random() - 0.5) * 14;
+                    const jy = (Math.random() - 0.5) * 14;
+
+                    ctx.save();
+                    ctx.translate(180 + jx, 180 + jy);
+
+                    // Gaunt pale skull-like silhouette
+                    ctx.fillStyle = '#e4e4e7';
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, 105, 145, 0, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Dark hollow shadows
+                    ctx.fillStyle = '#09090b';
+                    ctx.beginPath();
+                    ctx.ellipse(-45, -25, 28, 34, -0.15, 0, Math.PI * 2);
+                    ctx.ellipse(45, -25, 28, 34, 0.15, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Piercing crimson pinprick pupils
+                    ctx.fillStyle = '#ef4444';
+                    ctx.beginPath();
+                    ctx.arc(-45 + (Math.random() - 0.5) * 5, -25, 6, 0, Math.PI * 2);
+                    ctx.arc(45 + (Math.random() - 0.5) * 5, -25, 6, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Screaming elongated void mouth
+                    ctx.fillStyle = '#000000';
+                    ctx.beginPath();
+                    ctx.ellipse(0, 68, 42, 62 + Math.sin(frame * 0.7) * 8, 0, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Scanline tear glitch
+                    if (Math.random() > 0.45) {
+                        const sliceY = (Math.random() - 0.5) * 240;
+                        ctx.fillStyle = 'rgba(220, 38, 38, 0.35)';
+                        ctx.fillRect(-160, sliceY, 320, 12);
+                    }
+
+                    ctx.restore();
+                    frame++;
+                    requestAnimationFrame(animateFace);
+                }
+                animateFace();
+            }
+
+            function triggerFinalJumpscare() {
+                if (jumpscareTriggered) return;
+                jumpscareTriggered = true;
+
+                triggerJumpscareAudio();
+                drawJumpscareFace();
+
+                body.classList.add('violent-shake');
+                jumpscareOverlay.classList.remove('hidden');
+                jumpscareOverlay.classList.add('flex');
+                jumpscareOverlay.style.backgroundColor = '#dc2626';
+
+                setTimeout(() => {
+                    jumpscareOverlay.style.backgroundColor = '#ffffff';
+                }, 85);
+                setTimeout(() => {
+                    jumpscareOverlay.style.backgroundColor = '#000000';
+                    body.classList.remove('violent-shake');
+                }, 180);
+
+                handleScrollProgression();
+            }
+
+            acceptSoulBtn.addEventListener('click', triggerFinalJumpscare);
+
+            inspectAbyssBtn.addEventListener('click', () => {
+                jumpscareOverlay.classList.add('hidden');
+                jumpscareOverlay.classList.remove('flex');
+                // Scroll lock remains permanently active at the bottom
+                window.scrollTo(0, maxScrollY);
+            });
+        })();
+    </script>
+</body>
+</html>
